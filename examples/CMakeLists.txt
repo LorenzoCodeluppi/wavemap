@@ -12,6 +12,11 @@ add_compile_options(-Wno-suggest-attribute=const)
 include_directories(include)
 
 # Binaries
+cs_add_executable(map_leaves_to_ply_pointcloud
+    src/conversions/map_leaves_to_ply_pointcloud.cc)
+cs_add_executable(occupancy_map_to_esdf
+    src/conversions/occupancy_map_to_esdf.cc)
+
 cs_add_executable(save_map_to_file
         src/io/save_map_to_file.cc)
 cs_add_executable(load_map_from_file
@@ -35,6 +40,3 @@ cs_add_executable(trilinear_interpolation
 
 cs_add_executable(classification
         src/queries/classification.cc)
-
-cs_add_executable(occupancy_to_esdf
-        src/planning/occupancy_to_esdf.cc)
