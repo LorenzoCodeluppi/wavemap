@@ -4,6 +4,8 @@
 #include <memory>
 #include <unordered_map>
 
+#include <wavemap/core/utils/thread_pool.h>
+
 #include "wavemap/core/common.h"
 #include "wavemap/core/config/config_base.h"
 #include "wavemap/core/data_structure/spatial_hash.h"
@@ -69,7 +71,9 @@ class HashedWaveletOctree : public MapBase {
   using BlockHashMap = SpatialHash<Block, kDim>;
 
   explicit HashedWaveletOctree(const HashedWaveletOctreeConfig& config)
-      : MapBase(config), config_(config.checkValid()) {}
+      : MapBase(config),
+        config_(config.checkValid()),
+        thread_pool_(std::make_shared<ThreadPool>()) {}
 
   // Copy construction is not supported
   HashedWaveletOctree(const HashedWaveletOctree&) = delete;
@@ -120,6 +124,8 @@ class HashedWaveletOctree : public MapBase {
 
   BlockIndex indexToBlockIndex(const OctreeIndex& node_index) const;
   CellIndex indexToCellIndex(OctreeIndex index) const;
+
+  std::shared_ptr<ThreadPool> thread_pool_;
 
  private:
   const HashedWaveletOctreeConfig config_;

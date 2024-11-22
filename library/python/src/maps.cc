@@ -241,6 +241,70 @@ void add_map_bindings(nb::module_& m) {
           "position_list"_a, "mode"_a = InterpolationMode::kTrilinear,
           "Query the map's value at the given points, using the specified "
           "interpolation mode.");
+      .def("interpolate_robot_grids",
+        [](const HashedWaveletOctree& self,
+            const nb::ndarray<FloatingPoint, nb::shape<-1, 3>>&
+                positions,  // (M, 3)
+            const nb::ndarray<FloatingPoint, nb::shape<-1, 4>>&
+                rot_quat,                                             // (M, 4)
+            const nb::ndarray<FloatingPoint, nb::shape<-1, 3>>& grid  // (N, 3)
+        ) {
+          // Create a query accelerator
+          QueryAccelerator<HashedWaveletOctree> query_accelerator{self};
+
+          auto positions_view = positions.view();
+          auto rot_quat_view = rot_quat.view();
+          auto grid_view = grid.view();
+
+          const int num_envs = positions.shape(0);
+          const int total_grid_points = grid.shape(0);
+
+          // Create the raw results array and wrap it in a Python capsule
+          auto* results = new float[num_envs * total_grid_points];
+          nb::capsule owner(results, [](void* p) noexcept {
+            delete[] reinterpret_cast<float*>(p);
+          });
+
+          auto interpolate_function =
+              [&self](const Eigen::Vector3f& grid_point_transformed) {
+                return interpolate::trilinear(self, grid_point_transformed);
+              };
+
+          for (int env = 0; env < num_envs; ++env) {
+            // use the thread_pool_ variable to parallelize this loop
+            self.thread_pool_->add_task([env, total_grid_points, results,
+                                          rot_quat_view, positions_view,
+                                          grid_view, interpolate_function]() {
+              // Get the rotation matrix from the quaternion (scalar first)
+              const Eigen::Quaternionf quat{
+                  rot_quat_view(env, 0), rot_quat_view(env, 1),
+                  rot_quat_view(env, 2), rot_quat_view(env, 3)};
+
+              const Eigen::Matrix3f rotation_matrix = quat.toRotationMatrix();
+
+              // Create the translation vector
+              const Eigen::Vector3f translation{positions_view(env, 0),
+                                                positions_view(env, 1),
+                                                positions_view(env, 2)};
+
+              // Apply rotation and translation and interpolate the points
+              for (int pt_idx = 0; pt_idx < total_grid_points; ++pt_idx) {
+                const int result_idx = env * total_grid_points + pt_idx;
+                const Eigen::Vector3f grid_point{grid_view(pt_idx, 0),
+                                                  grid_view(pt_idx, 1),
+                                                  grid_view(pt_idx, 2)};
+                const Eigen::Vector3f grid_point_transformed =
+                    rotation_matrix * grid_point + translation;
+
+                results[result_idx] =
+                    interpolate_function(grid_point_transformed);
+              }
+            });
+          }
+          self.thread_pool_->wait_all();
+          return nb::ndarray<nb::numpy, float>{
+              results, {num_envs, total_grid_points}, owner};
+        });
 
   nb::class_<HashedChunkedWaveletOctree, MapBase>(
       m, "HashedChunkedWaveletOctree",
