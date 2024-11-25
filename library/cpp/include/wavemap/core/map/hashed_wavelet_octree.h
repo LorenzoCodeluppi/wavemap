@@ -72,8 +72,8 @@ class HashedWaveletOctree : public MapBase {
 
   explicit HashedWaveletOctree(const HashedWaveletOctreeConfig& config)
       : MapBase(config),
-        config_(config.checkValid()),
-        thread_pool_(std::make_shared<ThreadPool>()) {}
+        thread_pool_(std::make_shared<ThreadPool>()),
+        config_(config.checkValid()) {}
 
   // Copy construction is not supported
   HashedWaveletOctree(const HashedWaveletOctree&) = delete;

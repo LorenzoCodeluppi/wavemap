@@ -266,7 +266,7 @@ void add_map_bindings(nb::module_& m) {
             });
 
             // Interpolate the grid at all robot positions
-            for (int env_idx = 0; env_idx < num_envs; ++env_idx) {
+            for (size_t env_idx = 0; env_idx < num_envs; ++env_idx) {
               // Create a parallel job for each robot pose
               self.thread_pool_->add_task([env_idx, num_grid_points, results,
                                            q_WB_list, t_WB_list, B_grid_points,
@@ -286,7 +286,7 @@ void add_map_bindings(nb::module_& m) {
                 const Transformation3D T_WB{t_WB, q_WB};
 
                 // Apply rotation and translation and interpolate the points
-                for (int pt_idx = 0; pt_idx < num_grid_points; ++pt_idx) {
+                for (size_t pt_idx = 0; pt_idx < num_grid_points; ++pt_idx) {
                   const size_t result_idx = env_idx * num_grid_points + pt_idx;
                   const Point3D B_grid_point{B_grid_points(pt_idx, 0),
                                              B_grid_points(pt_idx, 1),
