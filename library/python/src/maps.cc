@@ -245,67 +245,69 @@ void add_map_bindings(nb::module_& m) {
           "interpolate_robot_grids",
           [](const HashedWaveletOctree& self,
              const nb::ndarray<FloatingPoint, nb::shape<-1, 3>>&
-                 positions,  // (M, 3)
+                 robot_positions,
              const nb::ndarray<FloatingPoint, nb::shape<-1, 4>>&
-                 rot_quat,                                             // (M, 4)
-             const nb::ndarray<FloatingPoint, nb::shape<-1, 3>>& grid  // (N, 3)
-          ) {
-            // Create a query accelerator
-            QueryAccelerator<HashedWaveletOctree> query_accelerator{self};
+                 robot_orientations,
+             const nb::ndarray<FloatingPoint, nb::shape<-1, 3>>&
+                 robocentric_grid) {
+            // Get views for fast access
+            const auto t_WB_list = robot_positions.view();
+            const auto q_WB_list = robot_orientations.view();
+            const auto B_grid_points = robocentric_grid.view();
 
-            auto positions_view = positions.view();
-            auto rot_quat_view = rot_quat.view();
-            auto grid_view = grid.view();
-
-            const int num_envs = positions.shape(0);
-            const int total_grid_points = grid.shape(0);
+            // Define constants to improve readability
+            const size_t num_envs = t_WB_list.shape(0);
+            const size_t num_grid_points = B_grid_points.shape(0);
 
             // Create the raw results array and wrap it in a Python capsule
-            auto* results = new float[num_envs * total_grid_points];
+            auto* results = new float[num_envs * num_grid_points];
             nb::capsule owner(results, [](void* p) noexcept {
               delete[] reinterpret_cast<float*>(p);
             });
 
-            auto interpolate_function =
-                [&self](const Eigen::Vector3f& grid_point_transformed) {
-                  return interpolate::trilinear(self, grid_point_transformed);
-                };
+            // Interpolate the grid at all robot positions
+            for (int env_idx = 0; env_idx < num_envs; ++env_idx) {
+              // Create a parallel job for each robot pose
+              self.thread_pool_->add_task([env_idx, num_grid_points, results,
+                                           q_WB_list, t_WB_list, B_grid_points,
+                                           &map = std::as_const(self)]() {
+                // Create a query accelerator
+                // NOTE: The QueryAccelerator speeds up queries by caching nodes
+                //       and intermediate values. Since this caching is not
+                //       thread-safe, we must create one instance per job.
+                QueryAccelerator<HashedWaveletOctree> query_accelerator{map};
 
-            for (int env = 0; env < num_envs; ++env) {
-              // use the thread_pool_ variable to parallelize this loop
-              self.thread_pool_->add_task([env, total_grid_points, results,
-                                           rot_quat_view, positions_view,
-                                           grid_view, interpolate_function]() {
-                // Get the rotation matrix from the quaternion (scalar first)
-                const Eigen::Quaternionf quat{
-                    rot_quat_view(env, 0), rot_quat_view(env, 1),
-                    rot_quat_view(env, 2), rot_quat_view(env, 3)};
-
-                const Eigen::Matrix3f rotation_matrix = quat.toRotationMatrix();
-
-                // Create the translation vector
-                const Eigen::Vector3f translation{positions_view(env, 0),
-                                                  positions_view(env, 1),
-                                                  positions_view(env, 2)};
+                // Assemble the transform from the robot's body to world frame
+                const Rotation3D q_WB{
+                    q_WB_list(env_idx, 0), q_WB_list(env_idx, 1),
+                    q_WB_list(env_idx, 2), q_WB_list(env_idx, 3)};
+                const Point3D t_WB{t_WB_list(env_idx, 0), t_WB_list(env_idx, 1),
+                                   t_WB_list(env_idx, 2)};
+                const Transformation3D T_WB{t_WB, q_WB};
 
                 // Apply rotation and translation and interpolate the points
-                for (int pt_idx = 0; pt_idx < total_grid_points; ++pt_idx) {
-                  const int result_idx = env * total_grid_points + pt_idx;
-                  const Eigen::Vector3f grid_point{grid_view(pt_idx, 0),
-                                                   grid_view(pt_idx, 1),
-                                                   grid_view(pt_idx, 2)};
-                  const Eigen::Vector3f grid_point_transformed =
-                      rotation_matrix * grid_point + translation;
+                for (int pt_idx = 0; pt_idx < num_grid_points; ++pt_idx) {
+                  const size_t result_idx = env_idx * num_grid_points + pt_idx;
+                  const Point3D B_grid_point{B_grid_points(pt_idx, 0),
+                                             B_grid_points(pt_idx, 1),
+                                             B_grid_points(pt_idx, 2)};
+                  const Point3D t_W_grid_point = T_WB * B_grid_point;
 
                   results[result_idx] =
-                      interpolate_function(grid_point_transformed);
+                      interpolate::trilinear(query_accelerator, t_W_grid_point);
                 }
               });
             }
+
+            // Wait for all parallel jobs to finish
             self.thread_pool_->wait_all();
+
+            // Return the result as a numpy array
             return nb::ndarray<nb::numpy, float>{
-                results, {num_envs, total_grid_points}, owner};
-          });
+                results, {num_envs, num_grid_points}, owner};
+          },
+          "robot_position_list"_a, "robot_orientation_list"_a,
+          "robocentric_grid"_a);
 
   nb::class_<HashedChunkedWaveletOctree, MapBase>(
       m, "HashedChunkedWaveletOctree",
