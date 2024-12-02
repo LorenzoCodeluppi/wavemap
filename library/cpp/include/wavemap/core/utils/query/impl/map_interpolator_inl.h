@@ -16,9 +16,9 @@ FloatingPoint nearestNeighbor(MapT& map, const Point3D& position) {
 }
 
 template <typename MapT>
-FloatingPoint trilinear(MapT& map, const Point3D& position) {
+FloatingPoint trilinear(MapT& map, const Point3D& position, const IndexElement& height) {
   // Compute the index of the interpolation neighborhood's minimum corner
-  const FloatingPoint cell_width = map.getMinCellWidth();
+  const FloatingPoint cell_width = convert::heightToCellWidth(map.getMinCellWidth(), height);
   const FloatingPoint cell_width_inv = 1.f / cell_width;
   const auto min_corner_index =
       wavemap::convert::pointToFloorIndex(position, cell_width_inv);
@@ -28,7 +28,8 @@ FloatingPoint trilinear(MapT& map, const Point3D& position) {
   for (int neighbor_idx = 0; neighbor_idx < 8; ++neighbor_idx) {
     const Index3D offset{(neighbor_idx >> 2) & 1, (neighbor_idx >> 1) & 1,
                          neighbor_idx & 1};
-    cube_corners[neighbor_idx] = map.getCellValue(min_corner_index + offset);
+    const OctreeIndex index{height, min_corner_index + offset};
+    cube_corners[neighbor_idx] = map.getCellValue(index);
   }
 
   // Compute the offset between the query point, the min corner and max corner
