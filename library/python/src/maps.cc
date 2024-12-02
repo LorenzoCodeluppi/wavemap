@@ -249,7 +249,8 @@ void add_map_bindings(nb::module_& m) {
              const nb::ndarray<FloatingPoint, nb::shape<-1, 4>>&
                  robot_orientations,
              const nb::ndarray<FloatingPoint, nb::shape<-1, 3>>&
-                 robocentric_grid) {
+                 robocentric_grid,
+             const IndexElement& height) {
             // Get views for fast access
             const auto t_WB_list = robot_positions.view();
             const auto q_WB_list = robot_orientations.view();
@@ -270,6 +271,7 @@ void add_map_bindings(nb::module_& m) {
               // Create a parallel job for each robot pose
               self.thread_pool_->add_task([env_idx, num_grid_points, results,
                                            q_WB_list, t_WB_list, B_grid_points,
+                                           height,
                                            &map = std::as_const(self)]() {
                 // Create a query accelerator
                 // NOTE: The QueryAccelerator speeds up queries by caching nodes
@@ -293,8 +295,8 @@ void add_map_bindings(nb::module_& m) {
                                              B_grid_points(pt_idx, 2)};
                   const Point3D t_W_grid_point = T_WB * B_grid_point;
 
-                  results[result_idx] =
-                      interpolate::trilinear(query_accelerator, t_W_grid_point);
+                  results[result_idx] = interpolate::trilinear(
+                      query_accelerator, t_W_grid_point, height);
                 }
               });
             }
@@ -307,7 +309,7 @@ void add_map_bindings(nb::module_& m) {
                 results, {num_envs, num_grid_points}, owner};
           },
           "robot_position_list"_a, "robot_orientation_list"_a,
-          "robocentric_grid"_a);
+          "robocentric_grid"_a, "height"_a);
 
   nb::class_<HashedChunkedWaveletOctree, MapBase>(
       m, "HashedChunkedWaveletOctree",
