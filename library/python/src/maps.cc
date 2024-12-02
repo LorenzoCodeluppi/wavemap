@@ -68,22 +68,22 @@ void add_map_bindings(nb::module_& m) {
            "Set the value of the map at a given index.")
       .def("add_to_cell_value", &MapBase::addToCellValue, "index"_a, "update"_a,
            "Increment the value of the map at a given index.")
-      // .def(
-      //     "interpolate",
-      //     [](const MapBase& self, const Point3D& position,
-      //        InterpolationMode mode) {
-      //       switch (mode) {
-      //         case InterpolationMode::kNearest:
-      //           return interpolate::nearestNeighbor(self, position);
-      //         case InterpolationMode::kTrilinear:
-      //           return interpolate::trilinear(self, position);
-      //         default:
-      //           throw nb::type_error("Unknown interpolation mode.");
-      //       }
-      //     },
-      //     "position"_a, "mode"_a = InterpolationMode::kTrilinear,
-      //     "Query the map's value at a point, using the specified
-      //     interpolation " "mode.")
+      .def(
+          "interpolate",
+          [](const MapBase& self, const Point3D& position,
+             InterpolationMode mode) {
+            switch (mode) {
+              case InterpolationMode::kNearest:
+                return interpolate::nearestNeighbor(self, position);
+              case InterpolationMode::kTrilinear:
+                return interpolate::trilinear(self, position);
+              default:
+                throw nb::type_error("Unknown interpolation mode.");
+            }
+          },
+          "position"_a, "mode"_a = InterpolationMode::kTrilinear,
+          "Query the map's value at a point, using the specified interpolation "
+          "mode.")
       .def_static(
           "create",
           [](const param::Value& params) -> std::shared_ptr<MapBase> {
@@ -178,22 +178,22 @@ void add_map_bindings(nb::module_& m) {
           "node_index_list"_a,
           "Query the map at the given node indices, provided as a matrix with "
           "one (height, x, y, z) node index per row.")
-      // .def(
-      //     "interpolate",
-      //     [](const MapBase& self, const Point3D& position,
-      //        InterpolationMode mode) {
-      //       switch (mode) {
-      //         case InterpolationMode::kNearest:
-      //           return interpolate::nearestNeighbor(self, position);
-      //         case InterpolationMode::kTrilinear:
-      //           return interpolate::trilinear(self, position);
-      //         default:
-      //           throw nb::type_error("Unknown interpolation mode.");
-      //       }
-      //     },
-      //     "position"_a, "mode"_a = InterpolationMode::kTrilinear,
-      //     "Query the map's value at a point, using the specified
-      //     interpolation " "mode.")
+      .def(
+          "interpolate",
+          [](const MapBase& self, const Point3D& position,
+             InterpolationMode mode) {
+            switch (mode) {
+              case InterpolationMode::kNearest:
+                return interpolate::nearestNeighbor(self, position);
+              case InterpolationMode::kTrilinear:
+                return interpolate::trilinear(self, position);
+              default:
+                throw nb::type_error("Unknown interpolation mode.");
+            }
+          },
+          "position"_a, "mode"_a = InterpolationMode::kTrilinear,
+          "Query the map's value at a point, using the specifiedinterpolation "
+          "mode. ")
       .def(
           "interpolate",
           [](const HashedWaveletOctree& self,
@@ -295,7 +295,7 @@ void add_map_bindings(nb::module_& m) {
                                              B_grid_points(pt_idx, 2)};
                   const Point3D t_W_grid_point = T_WB * B_grid_point;
 
-                  results[result_idx] = interpolate::trilinear(
+                  results[result_idx] = interpolate::multiResolutionTrilinear(
                       query_accelerator, t_W_grid_point, height);
                 }
               });
@@ -320,22 +320,22 @@ void add_map_bindings(nb::module_& m) {
            nb::overload_cast<const OctreeIndex&>(
                &HashedChunkedWaveletOctree::getCellValue, nb::const_),
            "node_index"_a,
-           "Query the value of the map at a given octree node index.");
-  // .def(
-  //     "interpolate",
-  //     [](const MapBase& self, const Point3D& position,
-  //        InterpolationMode mode) {
-  //       switch (mode) {
-  //         case InterpolationMode::kNearest:
-  //           return interpolate::nearestNeighbor(self, position);
-  //         case InterpolationMode::kTrilinear:
-  //           return interpolate::trilinear(self, position);
-  //         default:
-  //           throw nb::type_error("Unknown interpolation mode.");
-  //       }
-  //     },
-  // "position"_a, "mode"_a = InterpolationMode::kTrilinear,
-  // "Query the map's value at a point, using the specified interpolation "
-  // "mode.");
+           "Query the value of the map at a given octree node index.")
+      .def(
+          "interpolate",
+          [](const MapBase& self, const Point3D& position,
+             InterpolationMode mode) {
+            switch (mode) {
+              case InterpolationMode::kNearest:
+                return interpolate::nearestNeighbor(self, position);
+              case InterpolationMode::kTrilinear:
+                return interpolate::trilinear(self, position);
+              default:
+                throw nb::type_error("Unknown interpolation mode.");
+            }
+          },
+          "position"_a, "mode"_a = InterpolationMode::kTrilinear,
+          "Query the map's value at a point, using the specified interpolation "
+          "mode.");
 }
 }  // namespace wavemap

@@ -9,8 +9,11 @@ template <typename MapT>
 FloatingPoint nearestNeighbor(MapT& map, const wavemap::Point3D& position);
 
 template <typename MapT>
-FloatingPoint trilinear(MapT& map, const wavemap::Point3D& position,
-                        const IndexElement& height = 0);
+FloatingPoint trilinear(MapT& map, const wavemap::Point3D& position);
+template <typename MapT>
+FloatingPoint multiResolutionTrilinear(MapT& map,
+                                       const wavemap::Point3D& position,
+                                       const IndexElement height = 0);
 }  // namespace wavemap::interpolate
 
 #include "wavemap/core/utils/query/impl/map_interpolator_inl.h"
